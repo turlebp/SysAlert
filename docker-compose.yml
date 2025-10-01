@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  bot:
+    build: .
+    container_name: monitor-bot
+    restart: unless-stopped
+    volumes:
+      - ./data:/home/appuser/app/data
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - ADMIN_USER_IDS=${ADMIN_USER_IDS}
+      - ADMIN_API_KEY=${ADMIN_API_KEY}
+      - DB_URL=sqlite:////home/appuser/app/data/bot.db
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - MAX_CONCURRENT_CHECKS=${MAX_CONCURRENT_CHECKS:-50}
+      - MIN_INTERVAL_SECONDS=${MIN_INTERVAL_SECONDS:-20}
+      - TELE_WORKERS=${TELE_WORKERS:-3}
+      - CPU_BENCH_ENABLED=${CPU_BENCH_ENABLED:-true}
+      - CPU_BENCH_URL=${CPU_BENCH_URL}
+      - CPU_BENCH_THRESHOLD_SECONDS=${CPU_BENCH_THRESHOLD_SECONDS:-0.35}
+    networks:
+      - monitor-net
+    # Optional health check
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f bot.py || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  monitor-net:
+    driver: bridge

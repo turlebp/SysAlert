@@ -1,0 +1,36 @@
+# Environment and secrets
+.env
+*.env
+!.env.example
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS
+Thumbs.db
