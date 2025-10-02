@@ -75,16 +75,15 @@ def load_config(path: str = "config.yaml") -> Dict[str, Any]:
     # CPU benchmark config
     if "cpu_benchmark" not in conf:
         conf["cpu_benchmark"] = {}
-    
+
     bench = conf["cpu_benchmark"]
     bench["enabled"] = os.getenv("CPU_BENCH_ENABLED", str(bench.get("enabled", "true"))).lower() == "true"
-    bench["url"] = os.getenv("CPU_BENCH_URL", bench.get("url", ""))
     bench["threshold_seconds"] = float(os.getenv("CPU_BENCH_THRESHOLD_SECONDS", bench.get("threshold_seconds", 0.35)))
     bench["poll_interval_seconds"] = int(os.getenv("CPU_BENCH_INTERVAL", bench.get("poll_interval_seconds", 300)))
-    
+    conf["tele_workers"] = int(os.getenv("TELE_WORKERS", conf.get("tele_workers", 3)))
     return conf
 
-
+# End here, no benchmark config
 def is_admin(user_id: int) -> bool:
     """Check if user is an admin."""
     return user_id in config.get("admin_user_ids", [])
@@ -198,10 +197,10 @@ async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     Does NOT auto-subscribe users - admin approval required.
     """
     msg = (
-        "👋 Welcome to UltraGiga Monitor Bot!\n\n"
+        "👋 Welcome to SysAlert Bot!\n\n"
         "This bot monitors your servers and alerts you when issues are detected.\n\n"
         "ℹ️ Note: This bot requires admin approval to use.\n"
-        "Use /whoami to get your chat_id and ask an admin to add you.\n\n"
+        "Use /whoami to get your chat_id and @turtle_sleep to add you.\n\n"
         "Available commands:\n"
         "/whoami - Show your chat ID\n"
         "/status - View your monitored targets\n"
@@ -483,7 +482,7 @@ async def post_init(app: Application) -> None:
     background_tasks.append(monitor_task)
     
     # Start CPU benchmark monitor if enabled
-    if config.get("cpu_benchmark", {}).get("enabled", False):
+    if os.getenv("CPU_BENCH_ENABLED", "true").lower() == "true":
         admin_ids = config.get("admin_user_ids", [])
         benchmark_task = asyncio.create_task(
             benchmark_monitor_loop(db, tele_queue, config, admin_ids)

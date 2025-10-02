@@ -4,6 +4,7 @@ Parses various JSON response formats and triggers alerts when thresholds are exc
 """
 import asyncio
 import logging
+import os
 import aiohttp
 from typing import Optional, Tuple, Any, List, Dict
 import time
@@ -38,7 +39,7 @@ def _parse_possible_structures(data: Any, target_name: str) -> Optional[Tuple[in
                     try:
                         ts = int(parts[1].strip())
                         val = float(parts[2].strip())
-                        result = (ts, val)  # Keep updating to get last match
+                        result = (ts, val)
                     except (ValueError, IndexError):
                         continue
             return result
@@ -127,55 +128,70 @@ async def benchmark_monitor_loop(
     """
     Background task that periodically checks CPU benchmarks.
     Only sends alerts to admin users.
+    Loads configuration from environment variables directly.
     
     Args:
         db: Database instance
         tele_queue: TeleQueue for sending alerts
-        config: Configuration dict
+        config: Configuration dict (for backwards compatibility, but uses env vars)
         admin_chat_ids: List of admin chat IDs to notify
     """
-    bench_config = config.get("cpu_benchmark", {})
+    # Load benchmark config from environment variables
+    enabled = os.getenv("CPU_BENCH_ENABLED", "true").lower() == "true"
     
-    if not bench_config.get("enabled", True):
+    if not enabled:
         logger.info("CPU benchmark monitoring disabled")
         return
     
-    url = bench_config.get("url")
-    threshold = float(bench_config.get("threshold_seconds", 0.35))
-    interval = int(bench_config.get("poll_interval_seconds", 300))
-    target_name = "turtlebp"  # Hardcoded for now, could be configurable
+    url = os.getenv("CPU_BENCH_URL", "")
+    threshold = float(os.getenv("CPU_BENCH_THRESHOLD_SECONDS", "0.35"))
+    interval = int(os.getenv("CPU_BENCH_INTERVAL", "300"))
+    targets_str = os.getenv("CPU_BENCH_TARGETS", "turtlebp")
+    
+    # Parse target names
+    target_names = [t.strip() for t in targets_str.split(",") if t.strip()]
     
     if not url:
-        logger.warning("CPU benchmark URL not configured, monitoring disabled")
+        logger.warning("CPU benchmark URL not configured (CPU_BENCH_URL), monitoring disabled")
         return
     
-    logger.info(f"Starting CPU benchmark monitor (interval: {interval}s, threshold: {threshold}s)")
+    if not target_names:
+        logger.warning("No CPU benchmark targets configured (CPU_BENCH_TARGETS), monitoring disabled")
+        return
+    
+    logger.info(f"Starting CPU benchmark monitor for targets: {', '.join(target_names)} (interval: {interval}s, threshold: {threshold}s)")
     
     while True:
         try:
-            alert_triggered, value, message = await check_cpu_benchmark(
-                url, target_name, threshold
-            )
-            
-            # Record in history/audit
-            if alert_triggered and admin_chat_ids:
-                # Send to all admins
-                for admin_id in admin_chat_ids:
-                    try:
-                        await tele_queue.enqueue(admin_id, message)
-                    except Exception:
-                        logger.exception(f"Failed to enqueue benchmark alert to admin {admin_id}")
-                
-                # Record in database
+            # Check all configured targets
+            for target_name in target_names:
                 try:
-                    await asyncio.to_thread(
-                        db.audit,
-                        0,  # System action
-                        "cpu_benchmark_alert",
-                        f"{target_name}: {value:.3f}s > {threshold}s"
+                    alert_triggered, value, message = await check_cpu_benchmark(
+                        url, target_name, threshold
                     )
+                    
+                    # Record in history/audit
+                    if alert_triggered and admin_chat_ids:
+                        # Send to all admins
+                        for admin_id in admin_chat_ids:
+                            try:
+                                await tele_queue.enqueue(admin_id, message)
+                            except Exception:
+                                logger.exception(f"Failed to enqueue benchmark alert to admin {admin_id}")
+                        
+                        # Record in database
+                        try:
+                            await asyncio.to_thread(
+                                db.audit,
+                                0,  # System action
+                                "cpu_benchmark_alert",
+                                f"{target_name}: {value:.3f}s > {threshold}s"
+                            )
+                        except Exception:
+                            logger.exception("Failed to record benchmark alert in audit log")
+                
                 except Exception:
-                    logger.exception("Failed to record benchmark alert in audit log")
+                    logger.exception(f"Error checking benchmark for {target_name}")
             
         except Exception:
             logger.exception("Error in benchmark monitor loop")
