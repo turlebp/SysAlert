@@ -13,4 +13,4 @@ cpu_benchmark:
   url: "https://proton.saltant.io/Services?handler=CpuBenchmark&dataRange=0&networkType=2"
   threshold_seconds: 0.35
   poll_interval_seconds: 300
-  targets: "turtlebp,chaininfra,xprcore"  # comma-separated
+  targets: "turtlebp"  # comma-separated for multiple benchmark monitoring as example user1,user2,user3
