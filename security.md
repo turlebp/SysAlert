@@ -41,7 +41,7 @@
 
 **DO NOT** open a public issue for security vulnerabilities.
 
-Email: security@example.com (replace with your contact)
+Email: turtle_bp@proton.me
 
 Include:
 - Description of vulnerability
@@ -49,7 +49,7 @@ Include:
 - Potential impact
 - Suggested fix (if any)
 
-We will respond within 48 hours.
+We will respond as soon as possible
 
 ## Best Practices for Operators
 
